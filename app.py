@@ -41,7 +41,7 @@ def login():
             print(current_user.is_authenticated)
             return jsonify({"message": "Login bem-sucedido"})
 
-    return jsonify({"message": "Credenciais inválidas"}), 400
+    return jsonify({"message": "Credenciais inválidas!"}), 400
 
 @app.route('/logout', methods=['GET'])
 @login_required  # Protege a rota de logout, exigindo que o usuário esteja autenticado
@@ -64,6 +64,40 @@ def create_user():
         return jsonify({"message": "Usuário criado com sucesso!"})
 
     return jsonify({"message": "Dados inválidos!"}), 400
+
+@app.route("/user/<int:user_id>", methods=["GET"])
+@login_required
+def read_user(user_id):
+    user = User.query.get(user_id)
+    if user:
+        return jsonify({"username": user.username})
+    return jsonify({"message": "Usuário não encontrado!"}), 404
+
+@app.route("/user/<int:user_id>", methods=["PUT"])
+@login_required
+def update_user(user_id):
+    data = request.json
+    user = User.query.get(user_id)
+
+    if user and data.get("password"):
+        user.password = data.get("password", user.password)
+        db.session.commit()
+
+        return jsonify({"message": f"Usuário {user_id} atualizado com sucesso!"})
+
+    return jsonify({"message": f"Usuário {user_id} não encontrado!"}), 404
+
+app.route("/user/<int:user_id>", methods=["DELETE"])
+@login_required
+def delete_user(user_id):
+    user = User.query.get(user_id)
+
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": f"Usuário {user_id} deletado com sucesso!"})
+
+    return jsonify({"message": f"Usuário {user_id} não encontrado!"}), 404
 
 @app.route("/hello-world", methods=["GET"])
 def hello_world():
