@@ -87,11 +87,14 @@ def update_user(user_id):
 
     return jsonify({"message": f"Usuário {user_id} não encontrado!"}), 404
 
-app.route("/user/<int:user_id>", methods=["DELETE"])
+@app.route("/user/<int:user_id>", methods=["DELETE"])
 @login_required
 def delete_user(user_id):
     user = User.query.get(user_id)
 
+    if user_id == current_user.id:
+        return jsonify({"message": "Você não pode deletar sua própria conta!"}), 403
+    
     if user:
         db.session.delete(user)
         db.session.commit()
