@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from models.user import User
 from database import db
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+import bcrypt
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your_secret_key"
@@ -29,7 +30,7 @@ def login():
         # Login do usuário
         user = User.query.filter_by(username=username).first()
 
-        if user and user.password == password:
+        if user and bcrypt.checkpw(str.encode(password), str.encode(user.password)):
             # Aqui você deve adicionar a lógica para gerar o token JWT
             # e retornar para o usuário. Por enquanto, vamos apenas retornar uma mensagem de sucesso.
             # Exemplo: token = generate_jwt_token(user)
@@ -57,7 +58,8 @@ def create_user():
     password = data.get("password")
 
     if username and password:
-        user = User(username=username, password=password, role='user')
+        hashed_password = bcrypt.hashpw(str.encode(password), bcrypt.gensalt())
+        user = User(username=username, password=hashed_password, role='user')
         db.session.add(user)
         db.session.commit()
 
