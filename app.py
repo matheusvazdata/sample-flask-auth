@@ -1,19 +1,16 @@
 from flask import Flask, request, jsonify
+from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 from models.user import User
 from database import db
-from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 import bcrypt
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://admin:admin123@127.0.0.1:3307/flask-crud"
 
-login_manager = LoginManager()  # Inicializa o gerenciador de login
-db.init_app(app)  # Inicializa o banco de dados com a aplicação Flask
-# Session - conexão ativa com o banco de dados
-login_manager.init_app(app)  # Inicializa o gerenciador de login com a aplicação Flask
-
-# View de login
+login_manager = LoginManager()
+db.init_app(app)
+login_manager.init_app(app)
 login_manager.login_view = "login"
 
 @login_manager.user_loader
@@ -57,15 +54,19 @@ def create_user():
     username = data.get("username")
     password = data.get("password")
 
-    if username and password:
+    if username and password and current_user.role == 'admin':
         hashed_password = bcrypt.hashpw(str.encode(password), bcrypt.gensalt())
         user = User(username=username, password=hashed_password, role='user')
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({"message": "Usuário criado com sucesso!"})
+        return jsonify({"message": "Usuário criado com sucesso!"}), 201
+    
+    else:
+        if current_user.role != 'admin':
+            return jsonify({"message": "Você não tem permissão para criar usuários!"}), 403
 
-    return jsonify({"message": "Dados inválidos!"}), 400
+    return jsonify({"message": "Dados inválidos!"}), 403
 
 @app.route("/user/<int:user_id>", methods=["GET"])
 @login_required
@@ -84,11 +85,13 @@ def update_user(user_id):
     if user_id != current_user.id and current_user.role == 'user':
         return jsonify({"message": "Você não tem permissão para atualizar este usuário!"}), 403
 
+    if user:
+        new_password = data.get("password")
+        if new_password:
+            hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt())
+            user.password = hashed_password.decode()
 
-    if user and data.get("password"):
-        user.password = data.get("password", user.password)
         db.session.commit()
-
         return jsonify({"message": f"Usuário {user_id} atualizado com sucesso!"})
 
     return jsonify({"message": f"Usuário {user_id} não encontrado!"}), 404
